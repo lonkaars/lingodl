@@ -10,9 +10,6 @@ there's also another website which does something kind of similar:
 anything from npostart, but my script is just meant to work on lingo (though it
 might work on other programs).
 
-it currently only downloads the video track, but i'm working on downloading the
-audio tracks too.
-
 all other npo download/ripping scripts have been patched and don't seem to work
 anymore, and i don't plan on maintaining this once i'm done with it.
 
