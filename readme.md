@@ -1,9 +1,9 @@
 # lingodl
 
 this is a simple and very janky nodejs script to rip lingo episodes from
-<npostart.nl>. lingo stopped airing in 2014 (at least the good episodes). the
-npo website is very slow and i wanted to download the video files so i can
-store them on my private media server.
+[npostart.nl](https://www.npostart.nl/). lingo stopped airing in 2014 (at least
+the good episodes). the npo website is very slow and i wanted to download the
+video files so i can store them on my private media server.
 
 there's also another website which does something kind of similar:
 [downloadgemist](https://downloadgemist.nl/index.php). it's meant to rip
