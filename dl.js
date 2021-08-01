@@ -1,4 +1,5 @@
 #!/bin/node
+var cp = require('child_process');
 var { parseStringPromise } = require('xml2js');
 var fs = require('fs');
 var { URLSearchParams } = require('url');
@@ -6,8 +7,44 @@ var axios = require("axios");
 var puppeteer = require("puppeteer");
 var cheerio = require("cheerio");
 
-// var url = process.argv[2];
-var url = "https://www.npostart.nl/lingo/28-07-2014/AT_2014684";
+var url = process.argv[2];
+if (!url) {
+	console.error("no input link!");
+	process.exit(1);
+}
+
+function getDLURLs(streaminfo, baseURL) {
+	var highestQuality = streaminfo.Representation.pop().$;
+	var toDownload = streaminfo.SegmentTemplate[0];
+
+	var urls = [];
+	var time = 0;
+	urls.push(toDownload.$.initialization.replace("$RepresentationID$", highestQuality.id));
+	toDownload.SegmentTimeline[0].S.forEach(segment => {
+		urls.push(toDownload.$.media
+			.replace("$RepresentationID$", highestQuality.id)
+			.replace("$Time$", time));
+		time += Number(segment.$.d);
+	});
+
+	urls = urls.map(url => baseURL + '/' + url);
+
+	return urls;
+}
+
+async function dlURLs(urls, filename) {
+	var file = fs.createWriteStream(filename);
+	for (let i = 0; i < urls.length; i++) {
+		console.log("downloading " + urls[i] + "...");
+		var res = await axios({
+			method: 'get',
+			url: urls[i],
+			responseType: 'arraybuffer'
+		});
+		file.write(res.data);
+	}
+	file.close();
+}
 
 (async () => {
 	var browser = await puppeteer.launch();
@@ -44,8 +81,6 @@ var url = "https://www.npostart.nl/lingo/28-07-2014/AT_2014684";
 		"s" + video.seasonNumber.toString().padStart(2, '0') +
 		"e" + video.episodeNumber.toString().padStart(2, '0');
 
-	var file = fs.createWriteStream(filename + '.mp4');
-
 	var streamSrc = streaminfo.data.stream.src;
 	var xmlString = await axios.get(streamSrc);
 	var baseURL = streamSrc.replace(/\/stream\.mpd$/, '');
@@ -53,28 +88,14 @@ var url = "https://www.npostart.nl/lingo/28-07-2014/AT_2014684";
 	var xml = await parseStringPromise(xmlString.data);
 
 	var videoStream = xml.MPD.Period[0].AdaptationSet.find(s => s.$.contentType == 'video');
-	var highestQuality = videoStream.Representation.pop().$;
-	var toDownload = videoStream.SegmentTemplate[0];
+	await dlURLs(getDLURLs(videoStream, baseURL), filename + '.mp4v');
 
-	var urls = [];
-	var time = 0;
-	urls.push(toDownload.$.initialization.replace("$RepresentationID$", highestQuality.id));
-	toDownload.SegmentTimeline[0].S.forEach(segment => {
-		urls.push(toDownload.$.media
-			.replace("$RepresentationID$", highestQuality.id)
-			.replace("$Time$", time));
-		time += Number(segment.$.d);
-	});
+	var audioStream = xml.MPD.Period[0].AdaptationSet.find(s => s.$.contentType == 'audio');
+	await dlURLs(getDLURLs(audioStream, baseURL), filename + '.mp4a');
 
-	for (let i = 0; i < urls.length; i++) {
-		console.log("downloading " + urls[i] + "...")
-		var res = await axios({
-			method: 'get',
-			url: baseURL + '/' + urls[i],
-			responseType: 'arraybuffer'
-		});
-		file.write(res.data);
-	}
-	file.close();
+	cp.execSync(`ffmpeg -i ${filename}.mp4v -i ${filename}.mp4a -map 0:0 -map 1:0 -c copy ${filename}.mp4`);
+	
+	fs.rmSync(filename + '.mp4v');
+	fs.rmSync(filename + '.mp4a');
 })();
 
