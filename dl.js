@@ -21,7 +21,7 @@ function getDLURLs(streaminfo, baseURL) {
 	var time = 0;
 	urls.push(toDownload.$.initialization.replace("$RepresentationID$", highestQuality.id));
 	toDownload.SegmentTimeline[0].S.forEach(segment => {
-		var repeat = segment.$.r || 1;
+		var repeat = Number(segment.$.r || 0) + 1;
 		for(let i = 0; i < repeat; i++) {
 			urls.push(toDownload.$.media
 				.replace("$RepresentationID$", highestQuality.id)
