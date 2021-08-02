@@ -21,10 +21,13 @@ function getDLURLs(streaminfo, baseURL) {
 	var time = 0;
 	urls.push(toDownload.$.initialization.replace("$RepresentationID$", highestQuality.id));
 	toDownload.SegmentTimeline[0].S.forEach(segment => {
-		urls.push(toDownload.$.media
-			.replace("$RepresentationID$", highestQuality.id)
-			.replace("$Time$", time));
-		time += Number(segment.$.d);
+		var repeat = segment.$.r || 1;
+		for(let i = 0; i < repeat; i++) {
+			urls.push(toDownload.$.media
+				.replace("$RepresentationID$", highestQuality.id)
+				.replace("$Time$", time));
+			time += Number(segment.$.d);
+		}
 	});
 
 	urls = urls.map(url => baseURL + '/' + url);
@@ -78,6 +81,7 @@ async function dlURLs(urls, filename) {
 	var streaminfo = await axios.get(`https://start-player.npo.nl/video/${video.id}/streams?` + streaminfoURL.toString());
 
 	var filename = video.title.toString().replace(/\s+/g, "-") + "_" +
+		video.id.replace(/\s+/g, '-').toLowerCase() + "_" +
 		"s" + video.seasonNumber.toString().padStart(2, '0') +
 		"e" + video.episodeNumber.toString().padStart(2, '0');
 
@@ -93,7 +97,7 @@ async function dlURLs(urls, filename) {
 	var audioStream = xml.MPD.Period[0].AdaptationSet.find(s => s.$.contentType == 'audio');
 	await dlURLs(getDLURLs(audioStream, baseURL), filename + '.mp4a');
 
-	cp.execSync(`ffmpeg -i ${filename}.mp4v -i ${filename}.mp4a -map 0:0 -map 1:0 -c copy ${filename}.mp4`);
+	cp.execSync(`ffmpeg -i ${filename}.mp4v -i ${filename}.mp4a -map 0:0 -map 1:0 ${filename}.mp4`);
 	
 	fs.rmSync(filename + '.mp4v');
 	fs.rmSync(filename + '.mp4a');
